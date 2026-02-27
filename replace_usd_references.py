@@ -62,7 +62,7 @@ def addReference(prim_path, file_path):
 
 # -------------------------------------------------------------
 
-"""Creates a UI 
+""" Creates a UI 
 
 """
 try:
@@ -221,3 +221,4 @@ class CheckReferencesDialog(QtWidgets.QDialog):
 
 if __name__ == "__main__":
     CheckReferencesDialog.show_dialog()
+
