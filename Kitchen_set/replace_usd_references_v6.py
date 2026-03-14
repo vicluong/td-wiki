@@ -78,7 +78,7 @@ def clear_references(stage, prim_path, missing_ref_path):
     other_ref_paths = []
 
     for ref in refs.GetAppliedItems():
-        if  not missing_ref_path.endswith(ref.assetPath[1:]):
+        if not missing_ref_path.endswith(ref.assetPath[1:]):
             other_ref_paths.append(ref.assetPath)
 
     refs_to_clear = prim.GetReferences()
@@ -86,23 +86,21 @@ def clear_references(stage, prim_path, missing_ref_path):
 
     return other_ref_paths 
 
-def add_reference(stage, prim_path, main_path, file_path, other_ref_paths):
+def add_reference(stage, prim_path, main_folder_path, correct_ref_path, other_ref_paths, seek_relative_path=True):
     root = stage.GetRootLayer()
     stage.SetEditTarget(root)
 
     prim = stage.GetPrimAtPath(prim_path)
     refs = prim.GetReferences()
 
-    all_ref_paths = [file_path] + other_ref_paths
+    if seek_relative_path and correct_ref_path.startswith(main_folder_path):
+        relative_path = "./" + os.path.relpath(correct_ref_path, main_folder_path).replace("\\", "/")
+        refs.AddReference(relative_path)
+    else:
+        refs.AddReference(correct_ref_path)
 
-    for ref_path in all_ref_paths:
-        if ref_path.startswith("./"):
-            refs.AddReference(ref_path)
-        elif ref_path.startswith(main_path):
-            relative_path = "./" + os.path.relpath(file_path, main_path).replace("\\", "/")
-            refs.AddReference(relative_path)
-        else:
-            refs.AddReference(file_path)
+    for ref_path in other_ref_paths:
+        refs.AddReference(ref_path)
 
     root.Save()
     stage.Reload()
@@ -115,12 +113,9 @@ def auto_find_reference(main_path, main_file_name):
 
     for dir_path, dir_names, file_names in os.walk(main_path):
         for file_name in file_names:
-            file_path = os.path.join(dir_path, file_name)
-            print("-------------------------------")
-            print("Main File Name:", main_file_name)
-            print("Checking file:", file_path)
-            print("Checking file name:", file_path.split(".")[-2])
-            if file_path.split(".")[-2].endswith(main_file_name) and (not latest_file or os.path.getmtime(file_path) > os.path.getmtime(latest_file)):
+            file_path = os.path.join(dir_path, file_name).replace("\\", "/")
+            if (file_path.split("/")[-1] == main_file_name.split("/")[-1] 
+                and (not latest_file or os.path.getmtime(file_path) > os.path.getmtime(latest_file))):
                 latest_file = file_path
             
     return latest_file
@@ -263,6 +258,10 @@ class CheckReferencesDialog(QtWidgets.QDialog):
         self.main_ref_dir_le.setReadOnly(True)
         self.main_ref_dir_btn = QtWidgets.QPushButton()
 
+        self.create_relative_path_checkbox = QtWidgets.QCheckBox()
+        self.create_relative_path_checkbox.setChecked(True)
+        self.auto_find_refs_checker = QtWidgets.QCheckBox()
+
         self.main_variant_dir_le = QtWidgets.QLineEdit()
         workspace_root = cmds.workspace(q=True, rootDirectory=True)
         self.main_variant_dir_le.setText(workspace_root if workspace_root else "")
@@ -299,6 +298,17 @@ class CheckReferencesDialog(QtWidgets.QDialog):
         main_ref_folder_layout.addWidget(self.main_ref_dir_le)
         main_ref_folder_layout.addWidget(self.main_ref_dir_btn)
         references_layout.addLayout(main_ref_folder_layout)
+
+        auto_refs_checker = QtWidgets.QVBoxLayout()
+        auto_refs_checker.addWidget(self.auto_find_refs_checker)
+        create_relative_path_layout = QtWidgets.QVBoxLayout()
+        create_relative_path_layout.addWidget(self.create_relative_path_checkbox)
+
+        form_ref_options_layout = QtWidgets.QFormLayout()
+        form_ref_options_layout.addRow("Create Relative Paths When Possible:", create_relative_path_layout)
+        form_ref_options_layout.addRow("Auto-Find Missing References If Possible:", auto_refs_checker)
+
+        references_layout.addLayout(form_ref_options_layout)
 
         problems_table_layout = QtWidgets.QVBoxLayout()
         problems_table_layout.addWidget(self.problems_table)
@@ -377,7 +387,8 @@ class CheckReferencesDialog(QtWidgets.QDialog):
 
                         # Reference Path
                         ref_path_le = QtWidgets.QLineEdit()
-                        # ref_path_le.setText(auto_find_reference(self.main_path_le.text(), os.path.basename(str(prim_path))))
+                        if self.auto_find_refs_checker.isChecked():
+                            ref_path_le.setText(auto_find_reference(self.main_folder_path, missing_ref))
                         ref_path_le.setReadOnly(True)
                         self.problems_table.setCellWidget(index, 3, ref_path_le)
 
@@ -402,7 +413,7 @@ class CheckReferencesDialog(QtWidgets.QDialog):
         else:
             print("Please select a valid main folder.")
 
-    def fix_ref_path(self, stage, prim_path, bad_ref, widget):
+    def fix_ref_path(self, stage, prim_path, missing_ref, widget):
         file_path = widget.text()
         if not file_path or not os.path.isfile(file_path):
             print("Please select a valid file before confirming.")
@@ -410,8 +421,8 @@ class CheckReferencesDialog(QtWidgets.QDialog):
             print("Main folder path has changed. Please check missing references again.")
         else:
             # clearReferences(stage, prim_path)
-            other_ref_paths = clear_references(stage, prim_path, bad_ref)
-            add_reference(stage, prim_path, self.main_folder_path, file_path, other_ref_paths)
+            other_ref_paths = clear_references(stage, prim_path, missing_ref)
+            add_reference(stage, prim_path, self.main_folder_path, file_path, other_ref_paths, self.create_relative_path_checkbox.isChecked())
             self.create_references_table()
 
     def create_variants_table(self):
