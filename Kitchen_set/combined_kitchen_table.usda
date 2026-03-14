@@ -1,0 +1,57 @@
+#usda 1.0
+(
+    defaultPrim = "Kitchen_set"
+    upAxis = "Z"
+)
+
+def Xform "Kitchen_set" (
+    kind = "assembly"
+)
+{
+    def Xform "Props_grp" (
+        kind = "group"
+    )
+    {
+        def Xform "DiningTable_grp" (
+            kind = "group"
+        )
+        {
+            def "KitchenTable_1" (
+                prepend references = [
+                    @./assets/Chir/Chair.usd@,
+                    @./assets/CeiingLight/CeilingLight.usd@,
+                    @./Kitchen_set_Corect/assets/KitchenTable/KitchenTable.usd@
+                ]
+            )
+            {
+                double3 xformOp:translate = (148.60921478271484, -165.71975326538086, -0.1450519561767578)
+                uniform token[] xformOpOrder = ["xformOp:translate"]
+            }
+
+            def "ChairB_1" (
+                prepend references = @./assets/Chair/Chair.usd@
+                variants = {
+                    string modelingVariant = "ChairB"
+                }
+            )
+            {
+                float xformOp:rotateZ = -90
+                double3 xformOp:translate = (248.5593185424805, -185.18944549560547, -0.6316165924072266)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateZ"]
+            }
+
+            def "ChairC_1" (
+                prepend references = @./assets/Chair/Chair.usd@
+                variants = {
+                    string modelingVariant = "ChairD"
+                }
+            )
+            {
+                float xformOp:rotateZ = -90
+                double3 xformOp:translate = (248.5593185424805, -185.18944549560547, -0.6316165924072266)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateZ"]
+            }
+        }
+    }
+}
+
